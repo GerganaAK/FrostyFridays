@@ -1,0 +1,25 @@
+create or replace schema CHALLENGE_23
+
+1) Download the CSV Files
+2) Download and Install SnowSQL : https://developers.snowflake.com/snowsql/
+3) Connect to Your Snowflake Instance: snowsql -a YOUR_ACCOUNT_NAME -u YOUR_USERNAME
+The Account Name should look like this: "xy12345.west-us-2.azure"
+4) USE DATABASE your_database_name;
+USE SCHEMA your_schema_name;
+5) PUT file:///path/to/your/files/*1.csv @~(stage name) auto_compress=true;
+6) COPY INTO your_target_table (before this you need to create both table and stage, see below)
+FROM @~ (stage name)
+FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"' SKIP_HEADER = 1)
+ON_ERROR = 'SKIP_FILE';
+
+
+CREATE OR REPLACE TABLE BULKLOAD (id INT,
+first_name	VARCHAR,
+last_name	VARCHAR,
+email	VARCHAR,
+gender	VARCHAR,
+ip_address VARCHAR);
+
+CREATE OR REPLACE STAGE BULKSTAGE;
+
+select * from BULKLOAD order by id;
