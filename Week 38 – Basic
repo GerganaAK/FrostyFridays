@@ -1,0 +1,67 @@
+CREATE OR REPLACE SCHEMA CHALLENGE_38
+
+-- Create first table
+CREATE or replace TABLE employees (
+id INT,
+name VARCHAR(50),
+department VARCHAR(50)
+);
+
+-- Insert example data into first table
+
+INSERT INTO employees (id, name, department)
+VALUES
+(1, 'Alice', 'Sales'),
+(2, 'Bob', 'Marketing');
+
+-- Create second table
+CREATE TABLE sales (
+id INT,
+employee_id INT,
+sale_amount DECIMAL(10, 2)
+);
+
+-- Insert example data into second table
+INSERT INTO sales (id, employee_id, sale_amount)
+VALUES
+(1, 1, 100.00),
+(2, 1, 200.00),
+(3, 2, 150.00);
+
+-- Create view that combines both tables
+CREATE VIEW employee_sales AS
+SELECT e.id, e.name, e.department, s.sale_amount
+FROM employees e
+JOIN sales s ON e.id = s.employee_id;
+
+-- Query the view to verify the data
+SELECT * FROM employee_sales;
+
+
+CREATE OR REPLACE STREAM sales_stream ON TABLE sales;
+
+
+CREATE OR REPLACE TABLE deleted_sales (
+    id INT,
+    employee_id INT,
+    sale_amount DECIMAL(10, 2),
+    deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+);
+
+select * from deleted_sales;
+
+CREATE OR REPLACE TASK process_deleted_sales
+  WAREHOUSE = 'compute_wh'
+  SCHEDULE = '1 minute'
+AS
+  INSERT INTO deleted_sales (id, employee_id, sale_amount)
+  SELECT s.id, s.employee_id, s.sale_amount
+  FROM sales_stream s
+  WHERE METADATA$ACTION = 'DELETE';
+
+  
+ALTER TASK process_deleted_sales RESUME;
+
+
+delete from sales
+where id='3'
