@@ -1,0 +1,104 @@
+CREATE OR REPLACE SCHEMA CHALLENGE_25;
+
+CREATE OR REPLACE STAGE s3_stage
+  FILE_FORMAT = (TYPE = 'JSON')
+  URL = 's3://frostyfridaychallenges/challenge_25/'
+
+  
+LIST @S3_STAGE;
+
+
+CREATE OR REPLACE TABLE weather_raw (data variant);
+COPY INTO weather_raw
+  FROM (SELECT * FROM @s3_stage)
+  FILE_FORMAT = (TYPE = 'JSON')
+
+select * from weather_raw;
+
+CREATE OR REPLACE FILE FORMAT my_json_format TYPE = 'JSON';
+
+
+CREATE OR REPLACE TABLE weather_parsed (
+    icon STRING,
+    precipitation FLOAT,
+    pressure_msl FLOAT,
+    relative_humidity FLOAT,
+    source_id INT,
+    sunshine FLOAT,
+    temperature FLOAT,
+    timestamp TIMESTAMP_NTZ,
+    visibility INT,
+    wind_direction INT,
+    wind_gust_direction INT,
+    wind_gust_speed FLOAT,
+    wind_speed FLOAT
+);
+
+INSERT INTO weather_parsed (
+    icon,
+    precipitation,
+    pressure_msl,
+    relative_humidity,
+    source_id,
+    sunshine,
+    temperature,
+    timestamp,
+    visibility,
+    wind_direction,
+    wind_gust_direction,
+    wind_gust_speed,
+    wind_speed
+)
+SELECT
+    flattened.value:icon::STRING,
+    flattened.value:precipitation::FLOAT,
+    flattened.value:pressure_msl::FLOAT,
+    flattened.value:relative_humidity::INT,
+    flattened.value:source_id::INT,
+    flattened.value:sunshine::FLOAT,
+    flattened.value:temperature::FLOAT,
+    TO_TIMESTAMP_NTZ(flattened.value:timestamp::STRING),
+    flattened.value:visibility::INT,
+    flattened.value:wind_direction::INT,
+    flattened.value:wind_gust_direction::INT,
+    flattened.value:wind_gust_speed::FLOAT,
+    flattened.value:wind_speed::FLOAT
+FROM 
+    weather_raw,
+    LATERAL FLATTEN(input => weather_raw.data:weather) AS flattened;
+
+
+
+select * from weather_parsed;
+
+
+create or replace table weather_agg (date timestamp,
+icon_array array, 
+avg_temperature float,
+total_precipitation float,
+avg_wind float,
+avg_humidity float);
+
+select * from weather_agg
+ORDER BY DATE;
+
+INSERT INTO weather_agg (
+    date,
+    icon_array,
+    avg_temperature,
+    total_precipitation,
+    avg_wind,
+    avg_humidity
+)
+SELECT
+    DATE_TRUNC('day', timestamp) AS day,
+    ARRAY_AGG(DISTINCT icon) AS icon_array,
+    AVG(temperature) AS avg_temperature,
+    SUM(precipitation) AS total_precipitation,
+    AVG(wind_speed) AS avg_wind,
+    AVG(relative_humidity) AS avg_humidity
+FROM
+    weather_parsed
+GROUP BY
+    DATE_TRUNC('day', timestamp);
+
