@@ -1,0 +1,21 @@
+CREATE OR REPLACE SCHEMA CHALLENGE_32
+
+
+-- Create User 1
+CREATE USER user1;
+
+-- Create User 2
+CREATE USER user2;
+
+CREATE SESSION POLICY session_policy_user1
+  SESSION_IDLE_TIMEOUT_MINS = 8
+  COMMENT = 'Session policy for the user1'
+;
+
+CREATE SESSION POLICY session_policy_user2
+  SESSION_UI_IDLE_TIMEOUT_MINS = 10
+  COMMENT = 'Session policy for the user2'
+;
+
+ALTER USER USER1 SET SESSION POLICY session_policy_user1;
+ALTER USER USER2 SET SESSION POLICY session_policy_user2;
