@@ -1,0 +1,85 @@
+CREATE SCHEMA CHALLENGE_11;
+
+-- Create the stage that points at the data.
+create stage week_11_frosty_stage
+    url = 's3://frostyfridaychallenges/challenge_11/'
+    file_format = FROSTY_FRIDAYS.CHALLENGE_1.MY_CSV_FORMAT;
+
+-- Create the table as a CTAS statement.
+
+CREATE OR REPLACE TABLE week11 AS
+SELECT 
+    m.$1 AS milking_datetime,
+    m.$2 as cow_number,
+    m.$3 as fat_percentage,
+    m.$4 as farm_code,
+    m.$5 as centrifuge_start_time,
+    m.$6 as centrifuge_end_time,
+    m.$7 as centrifuge_kwph,
+    m.$8 as centrifuge_electricity_used,
+    m.$9 as centrifuge_processing_time,
+    m.$10 as task_used 
+FROM @week_11_frosty_stage (file_format => 'FROSTY_FRIDAYS.CHALLENGE_1.MY_CSV_FORMAT', pattern => '.*milk_data.*[.]csv') m;
+
+ALTER TABLE week11
+MODIFY task_used VARCHAR(255);
+
+-- TASK 1: Remove all the centrifuge dates and centrifuge kwph and replace them with NULLs WHERE fat = 3. 
+-- Add note to task_used.
+
+CREATE OR REPLACE TASK whole_milk_updates
+    SCHEDULE = '1400 minutes'
+AS
+    UPDATE week11
+SET 
+    centrifuge_start_time = NULL,
+    centrifuge_end_time = NULL,
+    centrifuge_kwph = NULL,
+    centrifuge_electricity_used = NULL,
+    centrifuge_processing_time = NULL,
+    task_used = system$current_user_task_name()|| 'at' ||TO_CHAR(CURRENT_TIMESTAMP(), 'YYYY-MM-DD HH24:MI:SS')
+WHERE fat_percentage = 3;
+
+
+-- TASK 2: Calculate centrifuge processing time (difference between start and end time) WHERE fat != 3. 
+-- Add note to task_used.
+
+create or replace task skim_milk_updates
+    after frosty_fridays.challenge_11.whole_milk_updates
+as
+    update week11
+    set
+    centrifuge_processing_time= DATEDIFF('MINUTE', centrifuge_start_time, centrifuge_end_time),
+    CENTRIFUGE_ELECTRICITY_USED = ROUND(((DATEDIFF('minute',CENTRIFUGE_START_TIME,CENTRIFUGE_END_TIME)/60) * CENTRIFUGE_KWPH),2),
+    task_used = system$current_user_task_name()|| 'at' ||TO_CHAR(CURRENT_TIMESTAMP(), 'YYYY-MM-DD HH24:MI:SS')
+    where    
+    fat_percentage != 3;
+
+
+-- Manually execute the task.
+--We first resume the parent task and execute it, then we create the child task and suspend the parent task, 
+--after this we alter the child task and resume it and 
+--finally we execute the parent task with the filtered select statement 
+--reflecting the WHERE filter of the child task.
+
+ALTER TASK whole_milk_updates suspend;
+alter task skim_milk_updates resume;
+
+execute task whole_milk_updates;
+--execute task skim_milk_updates; ->Incorrect because we cannot execute non-rooted tasks: 
+
+
+-- Check that the data looks as it should.
+select * from week11 where FAT_PERCENTAGE != 3;
+
+
+select count(*) from week11;
+
+select * from week11;
+
+
+-- DESCRIBE TABLE week11;
+
+
+-- Check that the numbers are correct.
+select task_used, count(*) as row_count from week11 group by task_used;
