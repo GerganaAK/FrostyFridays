@@ -1,0 +1,59 @@
+CREATE SCHEMA CHALLENGE_22;
+
+-- File format to read the CSV
+create or replace file format frosty_csv
+    type = csv
+    field_delimiter = ','
+    field_optionally_enclosed_by = '"'
+    skip_header = 1;
+    
+-- Creates stage to read the CSV
+create or replace stage w22_frosty_stage
+  url = 's3://frostyfridaychallenges/challenge_22/'
+  file_format = frosty_csv;
+  
+-- Roles needed for challenge
+create role rep1;
+create role rep2;
+
+-- Grant roles to self for testing
+grant role rep1 to user GERYKANOVA;
+grant role rep2 to user GERYKANOVA;
+
+-- Enable warehouse usage. Assumes that `public` has access to the warehouse
+grant role public to role rep1;
+grant role public to role rep2;
+
+-- Create the table from the CSV in S3
+create table week22 as
+select t.$1::int id, t.$2::varchar(50) city, t.$3::int district from @w22_frosty_stage (pattern=>'.*sales_areas.*') t;
+
+select * from week22
+
+
+-- Code for creating the secure view
+CREATE OR REPLACE SECURE VIEW FROSTY_FRIDAYS.challenge_22.secure_cities AS
+SELECT id, city, district
+FROM FROSTY_FRIDAYS.challenge_22.week22
+WHERE city IN ('City1', 'City2');  -- Specify your conditions here
+
+-- Granting access to the secure view only for specific roles
+GRANT SELECT ON VIEW FROSTY_FRIDAYS.challenge_22.secure_cities TO ROLE rep1;
+GRANT SELECT ON VIEW FROSTY_FRIDAYS.challenge_22.secure_cities TO ROLE rep2;
+    
+-- Roles need DB access
+grant usage on database FROSTY_FRIDAYS to role rep1;
+grant usage on database FROSTY_FRIDAYS to role rep2;
+-- And schema access
+grant usage on schema FROSTY_FRIDAYS.challenge_22 to role rep1;
+grant usage on schema FROSTY_FRIDAYS.challenge_22 to role rep2;
+-- And usage of view
+grant select on view FROSTY_FRIDAYS.challenge_22.secure_cities to role rep1;
+grant select on view FROSTY_FRIDAYS.challenge_22.secure_cities to role rep2;
+
+-- Get the result of queries
+use role rep1
+select * from FROSTY_FRIDAYS.challenge_22.secure_cities;
+
+use role rep2
+select * from FROSTY_FRIDAYS.challenge_22.secure_cities;
