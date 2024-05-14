@@ -20,6 +20,19 @@ insert into measurements (height, weight, age, gender, id) values (249, 15, 73, 
 
 SELECT * FROM MEASUREMENTS;
 
+
+-- USING 'REPLACE'
+
+
+UPDATE measurements
+SET age = age - 1,
+    weight = weight * 1.10,
+    gender = REPLACE(gender, 'other', 'unknown');
+
+
+-- USING 'CASE WHEN' TO COMPARE
+
+
 UPDATE measurements
 SET age = age - 1,
     weight = weight * 1.10,
