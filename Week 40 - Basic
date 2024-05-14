@@ -1,0 +1,21 @@
+--Use the SNOWFLAKE_SAMPLE_DATA.TPCH_SF100 Sample dataset
+--Create a memoizable function that returns the Revenue ( Extended_Price with taking into account the given discount) for the European Region.
+
+create or replace schema CHALLENGE_40;
+
+CREATE OR REPLACE FUNCTION calculate_revenue(extended_price FLOAT, discount FLOAT)
+RETURNS FLOAT
+LANGUAGE SQL
+MEMOIZABLE
+AS
+$$
+    extended_price * (1 - discount)
+$$;
+
+SELECT SUM(calculate_revenue(l_extendedprice, l_discount)) AS revenue
+FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF100.LINEITEM l
+JOIN SNOWFLAKE_SAMPLE_DATA.TPCH_SF100.ORDERS o ON l_orderkey = o_orderkey
+JOIN SNOWFLAKE_SAMPLE_DATA.TPCH_SF100.CUSTOMER c ON o_custkey = c_custkey
+JOIN SNOWFLAKE_SAMPLE_DATA.TPCH_SF100.NATION n ON c_nationkey = n_nationkey
+JOIN SNOWFLAKE_SAMPLE_DATA.TPCH_SF100.REGION r ON n_regionkey = r_regionkey
+WHERE r_name = 'EUROPE';
