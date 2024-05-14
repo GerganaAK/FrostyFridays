@@ -1,0 +1,40 @@
+create or replace schema Challenge_55;
+
+create or replace stage week55_stage
+FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = ',' SKIP_HEADER = 1)
+    url='s3://frostyfridaychallenges/challenge_55/';
+
+list @week55_Stage;
+
+select metadata$filename, metadata$file_row_number from @week55_stage
+
+-- I supposed the structure of the CSV was exactly the same as the one in the exercise image.
+
+CREATE OR REPLACE TABLE my_table AS 
+SELECT 
+$1 ::int AS INDEX,
+$2 AS PRODUCT, 
+$3 AS QUANTITY, 
+$4 AS DATE, 
+$5 AS PRICE, 
+$6 AS COUNTRY, 
+$7 AS CITY
+FROM @week55_stage;
+
+select * from my_table
+ORDER BY "INDEX";
+
+--I didn´t see any duplicates in the data so the following result was exactly the same as in the "my_table" table...
+CREATE OR REPLACE TABLE cleaned_table AS
+SELECT
+    INDEX,
+    PRODUCT,
+    QUANTITY,
+    DATE,
+    PRICE,
+    COUNTRY,
+    CITY
+FROM my_table
+GROUP BY ALL;
+
+select * from cleaned_table;
