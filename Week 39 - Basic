@@ -1,0 +1,66 @@
+create or replace schema CHALLENGE_39;
+
+
+create or replace table customer_deets (
+    id int,
+    name string,
+    email string
+);
+
+insert into customer_deets values
+    (1, 'Jeff Jeffy', 'jeff.jeffy121@gmail.com'),
+    (2, 'Kyle Knight', 'kyleisdabest@hotmail.com'),
+    (3, 'Spring Hall', 'hall.yay@gmail.com'),
+    (4, 'Dr Holly Ray', 'drdr@yahoo.com');
+
+
+    
+--THIS ONE SUBSTITUTES THE CHARACTERS PRECEDING THE @ BY * BUT DOESN´T SET AN EQUAL AMOUNT OF * FOR ALL THE EMAIL ADDRESSES.
+
+
+
+CREATE OR REPLACE MASKING POLICY hide_email_prefix AS
+  (val STRING) RETURNS STRING ->
+  CASE
+    WHEN CURRENT_ROLE() IN ('ROLE_WITH_FULL_ACCESS') THEN val
+    ELSE
+      REPEAT('*', POSITION('@' IN val) - 1) || SUBSTRING(val, POSITION('@' IN val), LENGTH(val))
+  END;
+
+
+ALTER TABLE customer_deets MODIFY COLUMN email SET MASKING POLICY hide_email_prefix;
+
+
+SELECT * FROM CUSTOMER_DEETS
+
+-------------------------------
+
+create or replace table customer_deets2 (
+    id int,
+    name string,
+    email string
+);
+
+insert into customer_deets2 values
+    (1, 'Jeff Jeffy', 'jeff.jeffy121@gmail.com'),
+    (2, 'Kyle Knight', 'kyleisdabest@hotmail.com'),
+    (3, 'Spring Hall', 'hall.yay@gmail.com'),
+    (4, 'Dr Holly Ray', 'drdr@yahoo.com');
+
+  
+-- THIS POLICY CREATES A FIXED AMOUNT OF * BEFORE THE @ SYMBOL.
+
+
+CREATE OR REPLACE MASKING POLICY hide_email_prefix_fixed AS
+  (val STRING) RETURNS STRING ->
+  CASE
+    WHEN CURRENT_ROLE() IN ('ROLE_WITH_FULL_ACCESS') THEN val
+    ELSE
+      '*****' || SUBSTRING(val, POSITION('@' IN val), LENGTH(val))
+  END;
+
+
+ALTER TABLE customer_deets2 MODIFY COLUMN email SET MASKING POLICY hide_email_prefix_fixed;
+
+
+SELECT * FROM CUSTOMER_DEETS2;
